@@ -142,4 +142,107 @@ class DIPERLUKAN:
             )
 
             response = session.post(f'https://zefoy.com/{post_action}', data=data).text
-            self.base64_string = self.DECRYPTION
+            self.base64_string = self.DECRYPTION_BASE64(response)
+
+            if 'type="submit"' in str(self.base64_string):
+                boundary = '----WebKitFormBoundary' + ''.join(random.sample(string.ascii_letters + string.digits, 16))
+                session.headers.update({'Content-Type': f'multipart/form-data; boundary={boundary}'})
+                self.find_form_video = re.findall(r'type="hidden" name="(.*?)" value="(.*?)"', str(self.base64_string))
+                if len(self.find_form_video) >= 2:
+                    self.form_videolink, self.videolink = self.find_form_video[1][0], self.find_form_video[1][1]
+                    self.form_videoid, self.videoid = self.find_form_video[0][0], self.find_form_video[0][1]
+                else:
+                    printf(f"[bold bright_white]   ──>[bold red] UNABLE TO FIND REQUIRED FORM FIELDS!     ", end='\r')
+                    time.sleep(3.5)
+                    return False
+                self.next_post_action = re.search(r'action="(.*?)"', str(self.base64_string)).group(1)
+                data = MultipartEncoder(
+                    {
+                        self.form_videoid: (None, self.videoid),
+                        self.form_videolink: (None, self.videolink)
+                    }, boundary=boundary
+                )
+
+                response2 = session.post(f'https://zefoy.com/{self.next_post_action}', data=data).text
+                self.base64_string2 = self.DECRYPTION_BASE64(response2)
+
+                if 'Successfully favorited the video.' in str(self.base64_string2):
+                    SUKSES.append(f"{self.base64_string2}")
+                    printf(Panel(f"""[bold white]Status :[bold green] Successfully favorited!
+[bold white]Link :[bold red] {video_url}""", width=56, style="bold bright_white", title="[bold bright_white][ Sukses ]"))
+                    printf(f"[bold bright_white]   ──>[bold green] TRY SENDING FAVORITES AGAIN!           ", end='\r')
+                    time.sleep(2.5)
+                    self.MENGIRIMKAN_FAVORITOS(video_form, post_action, video_url)
+                else:
+                    GAGAL.append(f"{self.base64_string2}")
+                    printf(f"[bold bright_white]   ──>[bold red] FAILED TO SEND FAVORITES!           ", end='\r')
+                    time.sleep(3.5)
+                    COOKIES.update({"Cookie": None})
+                    return False
+
+    def DECRYPTION_BASE64(self, base64_code):
+        return base64.b64decode(urllib.parse.unquote(base64_code[::-1])).decode()
+
+    def DELAY(self, menit, detik):
+        self.total = (menit * 60 + detik)
+        while self.total:
+            menit, detik = divmod(self.total, 60)
+            printf(f"[bold bright_white]   ──>[bold white] WAIT[bold green] {menit:02d}:{detik:02d}[bold white] SUCCESS:-[bold green]{len(SUKSES)}[bold white] FAILED:-[bold red]{len(GAGAL)}              ", end='\r')
+            time.sleep(1)
+            self.total -= 1
+        return "0_0"
+
+class MAIN:
+    def __init__(self):
+        try:
+            self.TAMPILKAN_LOGO()
+            printf(Panel(f"[bold white]Please enter your TikTok video link. Ensure the account is not private and the link is correct.", width=56, style="bold bright_white", title="[bold bright_white][ Video Link ]"))
+            video_url = Console().input("[bold bright_white]   ╰─> ")
+            if 'tiktok.com' in str(video_url) or '/video/' in str(video_url):
+                printf(Panel(f"[bold white]Use [bold green]CTRL + C[bold white]CRTL + z to stop. If favorites do not register, try running the program again.", width=56, style="bold bright_white", title="[bold bright_white][ Note ]"))
+                while True:
+                    try:
+                        if COOKIES['Cookie'] is None or len(COOKIES['Cookie']) == 0:
+                            DIPERLUKAN().LOGIN()
+                        else:
+                            printf(f"[bold bright_white]   ──>[bold green] SENDING FAVORITES!     ", end='\r')
+                            time.sleep(2.5)
+                            DIPERLUKAN().MENDAPATKAN_FORMULIR(video_url)
+                    except (AttributeError, IndexError):
+                        printf(f"[bold bright_white]   ──>[bold red] ERROR OCCURRED IN INDEX FORM!            ", end='\r')
+                        time.sleep(7.5)
+                        continue
+                    except RequestException:
+                        printf(f"[bold bright_white]   ──>[bold red] YOUR CONNECTION IS HAVING A PROBLEM!     ", end='\r')
+                        time.sleep(7.5)
+                        continue
+                    except KeyboardInterrupt:
+                        printf(f"\r                                 ", end='\r')
+                        time.sleep(2.5)
+            else:
+                printf(Panel(f"[bold red]Please enter a valid TikTok video link.", width=56, style="bold bright_white", title="[bold bright_white][ Invalid Link ]"))
+                sys.exit()
+        except Exception as e:
+            printf(Panel(f"[bold red]{str(e).capitalize()}!", width=56, style="bold bright_white", title="[bold bright_white][ Error ]"))
+            sys.exit()
+
+    def TAMPILKAN_LOGO(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        printf(
+            Panel(r"""[bold red]● [bold yellow]● [bold green]●[bold white]
+[bold red] ______     ______     ______   ______     __  __    
+[bold red]/\___  \   /\  ___\   /\  ___\ /\  __ \   /\ \_\ \   
+[bold red]\/_/  /__  \ \  __\   \ \  __\ \ \ \/\ \  \ \____ \  
+[bold white]  /\_____\  \ \_____\  \ \_\    \ \_____\  \/\_____\ 
+[bold white]  \/_____/   \/_____/   \/_/     \/_____/   \/_____/
+        [underline green]Free TikTok Favorites - Coded by codywaroops""", width=56, style="bold bright_white")
+        )
+        return True
+
+if __name__ == '__main__':
+    try:
+        os.system('git pull')
+        MAIN()
+    except Exception as e:
+        printf(Panel(f"[bold red]{str(e).capitalize()}!", width=56, style="bold bright_white", title="[bold bright_white][ Error ]"))
+        sys.exit()
